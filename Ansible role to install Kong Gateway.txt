@@ -1,0 +1,107 @@
+Ansible role to install Kong Gateway from source in an ubuntuserver,sets up the auto startup script, and configures the necessary files.
+
+1) Create a new Ansible role:
+   
+$ ansible-galaxy init kong-gateway
+
+2) Update the tasks/main.yml file with the following content:
+
+---
+- name: Install required dependencies
+  apt:
+    name:
+      - wget
+      - unzip
+      - gcc
+      - make
+      - libssl-dev
+      - libpcre3-dev
+      - zlib1g-dev
+    state: present
+
+- name: Download and extract Kong Gateway source code
+  get_url:
+    url: "https://github.com/Kong/kong/archive/refs/tags/2.8.0.tar.gz"
+    dest: "/opt/kong.tar.gz"
+    mode: 0755
+  become: true
+
+- name: Extract Kong Gateway source code
+  unarchive:
+    src: "/opt/kong.tar.gz"
+    dest: "/opt/"
+    remote_src: true
+  become: true
+
+- name: Build and install Kong Gateway from source code
+  shell: |
+    cd /opt/kong-2.8.0
+    make install
+  become: true
+
+- name: Configure Kong Gateway
+  copy:
+    src: "files/kong.conf"
+    dest: "/etc/kong/kong.conf"
+    mode: 0644
+  become: true
+
+- name: Configure systemd service file
+  copy:
+    src: "files/kong.service"
+    dest: "/etc/systemd/system/kong.service"
+    mode: 0644
+  become: true
+
+- name: Reload systemd configuration
+  systemd:
+    daemon_reload: yes
+  become: true
+
+- name: Enable and start Kong Gateway service
+  systemd:
+    name: kong
+    enabled: yes
+    state: started
+  become: true
+
+3) Create a files directory within the role directory, and create two files inside it: kong.conf and kong.service.
+The kong.conf file should contain the following content:
+
+# Kong Gateway Configuration
+
+# General Settings
+# -----------------------------------------------
+
+# Database configuration
+# -----------------------------------------------
+# database = postgres   # Use Postgres as the database (default)
+# pg_host = 127.0.0.1   # Postgres host
+# pg_port = 5432        # Postgres port
+# pg_timeout = 5000     # Timeout for database operations in milliseconds
+# pg_user = kong        # Postgres user
+# pg_password = kong    # Postgres password
+# pg_database = kong    # Postgres database name
+
+# Memory configuration
+# -----------------------------------------------
+# memory_cache_size = 128m    # Memory cache size (default is 128m)
+# worker_processes = auto     # Number of worker processes (default is auto)
+
+# Network configuration
+# -----------------------------------------------
+# listen = 0.0.0.0:8000    # Listen address and port (default is 0.0.0.0:8000)
+# admin_listen = 0.0.0.0:8001    # Admin API listen address and port (default is 0.0.0.0:8001)
+
+# Plugins configuration
+# -----------------------------------------------
+# plugins = bundled    # Use bundled plugins (default)
+# custom_plugins =     # Specify custom plugins here
+
+# SSL configuration
+# -----------------------------------------------
+# ssl_cert_path = /etc/kong/ssl/kong.crt    # SSL certificate path
+# ssl_key_path = /etc
+
+
+
